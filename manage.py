@@ -2,11 +2,11 @@
 """Django's command-line utility for administrative tasks."""
 import os
 import sys
-import dotenv
-
+import sys
+from dotenv import load_dotenv
 
 def main():
-    dotenv.read_dotenv()
+    load_dotenv() # Заменили read_dotenv() на load_dotenv()
     """Run administrative tasks."""
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'shop_api.settings')
     try:

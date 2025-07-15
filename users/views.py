@@ -6,7 +6,9 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from rest_framework.authtoken.models import Token
 from rest_framework.generics import CreateAPIView
-
+from rest_framework_simplejwt.views import TokenObtainPairView
+from users.serializers import CustomTokenObtainSerializer
+from users.models import CustomUser
 from .serializers import (
     RegisterValidateSerializer,
     AuthValidateSerializer,
@@ -47,18 +49,16 @@ class RegistrationAPIView(CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        username = serializer.validated_data['username']
+        email = serializer.validated_data['email']
         password = serializer.validated_data['password']
 
-        # Use transaction to ensure data consistency
         with transaction.atomic():
-            user = User.objects.create_user(
-                username=username,
+            user = CustomUser.objects.create_user(
+                email=email,
                 password=password,
                 is_active=False
             )
 
-            # Create a random 6-digit code
             code = ''.join(random.choices(string.digits, k=6))
 
             confirmation_code = ConfirmationCode.objects.create(
@@ -98,3 +98,7 @@ class ConfirmUserAPIView(APIView):
                 'key': token.key
             }
         )
+        
+        
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainSerializer
