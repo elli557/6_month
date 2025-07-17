@@ -2,7 +2,7 @@ from collections import OrderedDict
 from django.db import transaction
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView, ListAPIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.views import APIView
@@ -17,6 +17,7 @@ from .serializers import (
     ProductValidateSerializer,
     ReviewValidateSerializer
 )
+from rest_framework.permissions import AllowAny
 
 PAGE_SIZE = 5
 
@@ -68,23 +69,23 @@ class ProductListCreateAPIView(ListCreateAPIView):
     queryset = Product.objects.select_related('category').all()
     serializer_class = ProductSerializer
     pagination_class = CustomPagination
+    permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
         serializer = ProductValidateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # Get validated data
         title = serializer.validated_data.get('title')
         description = serializer.validated_data.get('description')
         price = serializer.validated_data.get('price')
         category = serializer.validated_data.get('category')
 
-        # Create product
         product = Product.objects.create(
             title=title,
             description=description,
             price=price,
-            category=category
+            category=category,
+            owner=request.user
         )
 
         return Response(data=ProductSerializer(product).data,
@@ -95,6 +96,7 @@ class ProductDetailAPIView(RetrieveUpdateDestroyAPIView):
     queryset = Product.objects.select_related('category').all()
     serializer_class = ProductSerializer
     lookup_field = 'id'
+    permission_classes = [AllowAny]
 
     def put(self, request, *args, **kwargs):
         product = self.get_object()
@@ -108,6 +110,12 @@ class ProductDetailAPIView(RetrieveUpdateDestroyAPIView):
         product.save()
 
         return Response(data=ProductSerializer(product).data)
+
+class OwnerProductListAPIView(ListAPIView):
+    serializer_class = ProductSerializer
+
+    def get_queryset(self):
+        return Product.objects.filter(owner=self.request.user).select_related('category')
 
 
 class ReviewViewSet(ModelViewSet):
