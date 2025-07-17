@@ -128,12 +128,10 @@ class ReviewViewSet(ModelViewSet):
         serializer = ReviewValidateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # Get validated data
         text = serializer.validated_data.get('text')
         stars = serializer.validated_data.get('stars')
         product = serializer.validated_data.get('product')
 
-        # Create review
         review = Review.objects.create(
             text=text,
             stars=stars,
