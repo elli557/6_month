@@ -6,6 +6,8 @@ from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIV
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.views import APIView
+from common.permissions import IsModeratorPermission
+
 
 from .models import Category, Product, Review
 from .serializers import (
@@ -70,6 +72,7 @@ class ProductListCreateAPIView(ListCreateAPIView):
     serializer_class = ProductSerializer
     pagination_class = CustomPagination
     permission_classes = [AllowAny]
+    permission_classes = [IsModeratorPermission]
 
     def post(self, request, *args, **kwargs):
         serializer = ProductValidateSerializer(data=request.data)
@@ -97,6 +100,7 @@ class ProductDetailAPIView(RetrieveUpdateDestroyAPIView):
     serializer_class = ProductSerializer
     lookup_field = 'id'
     permission_classes = [AllowAny]
+    permission_classes = [IsModeratorPermission]
 
     def put(self, request, *args, **kwargs):
         product = self.get_object()
