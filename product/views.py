@@ -6,8 +6,6 @@ from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIV
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.views import APIView
-from common.permissions import IsModeratorPermission
-
 
 from .models import Category, Product, Review
 from .serializers import (
@@ -19,7 +17,7 @@ from .serializers import (
     ProductValidateSerializer,
     ReviewValidateSerializer
 )
-from rest_framework.permissions import AllowAny
+from common.permissions import IsOwner, IsAnonymous
 
 PAGE_SIZE = 5
 
@@ -45,7 +43,6 @@ class CategoryListCreateAPIView(ListCreateAPIView):
     def post(self, request, *args, **kwargs):
         serializer = CategoryValidateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         category = Category.objects.create(**serializer.validated_data)
         return Response(data=CategorySerializer(category).data,
                         status=status.HTTP_201_CREATED)
@@ -60,10 +57,8 @@ class CategoryDetailAPIView(RetrieveUpdateDestroyAPIView):
         instance = self.get_object()
         serializer = CategoryValidateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         instance.name = serializer.validated_data.get('name')
         instance.save()
-
         return Response(data=CategorySerializer(instance).data)
 
 
@@ -71,18 +66,19 @@ class ProductListCreateAPIView(ListCreateAPIView):
     queryset = Product.objects.select_related('category').all()
     serializer_class = ProductSerializer
     pagination_class = CustomPagination
-    permission_classes = [AllowAny]
-    permission_classes = [IsModeratorPermission]
+    permission_classes = [IsOwner | IsAnonymous]
 
     def post(self, request, *args, **kwargs):
+        email = request.auth.get('email')
+        print(email, "2"*10)
+
+
         serializer = ProductValidateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         title = serializer.validated_data.get('title')
         description = serializer.validated_data.get('description')
         price = serializer.validated_data.get('price')
         category = serializer.validated_data.get('category')
-
         product = Product.objects.create(
             title=title,
             description=description,
@@ -90,7 +86,6 @@ class ProductListCreateAPIView(ListCreateAPIView):
             category=category,
             owner=request.user
         )
-
         return Response(data=ProductSerializer(product).data,
                         status=status.HTTP_201_CREATED)
 
@@ -99,14 +94,12 @@ class ProductDetailAPIView(RetrieveUpdateDestroyAPIView):
     queryset = Product.objects.select_related('category').all()
     serializer_class = ProductSerializer
     lookup_field = 'id'
-    permission_classes = [AllowAny]
-    permission_classes = [IsModeratorPermission]
+    permission_classes = [IsOwner | IsAnonymous]
 
     def put(self, request, *args, **kwargs):
         product = self.get_object()
         serializer = ProductValidateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         product.title = serializer.validated_data.get('title')
         product.description = serializer.validated_data.get('description')
         product.price = serializer.validated_data.get('price')
@@ -117,7 +110,6 @@ class ProductDetailAPIView(RetrieveUpdateDestroyAPIView):
 
 class OwnerProductListAPIView(ListAPIView):
     serializer_class = ProductSerializer
-
     def get_queryset(self):
         return Product.objects.filter(owner=self.request.user).select_related('category')
 
@@ -131,17 +123,14 @@ class ReviewViewSet(ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = ReviewValidateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         text = serializer.validated_data.get('text')
         stars = serializer.validated_data.get('stars')
         product = serializer.validated_data.get('product')
-
         review = Review.objects.create(
             text=text,
             stars=stars,
             product=product
         )
-
         return Response(data=ReviewSerializer(review).data,
                         status=status.HTTP_201_CREATED)
 
