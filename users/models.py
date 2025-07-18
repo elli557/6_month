@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from users.managers import CustomUserManager
+from datetime import date 
 
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
@@ -12,6 +13,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     objects = CustomUserManager()
     REQUIRED_FIELDS = []
     USERNAME_FIELD = "email"
+    birthday = models.DateField(null=True, blank=True)
 
     def __str__(self):
         return self.email or ""

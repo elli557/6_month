@@ -6,7 +6,7 @@ from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIV
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.views import APIView
-
+from datetime import datetime
 from .models import Category, Product, Review
 from .serializers import (
     CategorySerializer,
@@ -69,22 +69,21 @@ class ProductListCreateAPIView(ListCreateAPIView):
     permission_classes = [IsOwner | IsAnonymous]
 
     def post(self, request, *args, **kwargs):
-        email = request.auth.get('email')
-        print(email, "2"*10)
-
+        user = request.user
+        if user.birthday:
+            today = datetime.today().date()
+            age = today.year - user.birthday.year - ((today.month, today.day) < (user.birthday.month, user.birthday.day))
+            if age < 18:
+                return Response({'error': 'вам должно быть 18 лет, чтобы создать продукт'}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = ProductValidateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        title = serializer.validated_data.get('title')
-        description = serializer.validated_data.get('description')
-        price = serializer.validated_data.get('price')
-        category = serializer.validated_data.get('category')
         product = Product.objects.create(
-            title=title,
-            description=description,
-            price=price,
-            category=category,
-            owner=request.user
+            title=serializer.validated_data['title'],
+            description=serializer.validated_data['description'],
+            price=serializer.validated_data['price'],
+            category=serializer.validated_data['category'],
+            owner=user
         )
         return Response(data=ProductSerializer(product).data,
                         status=status.HTTP_201_CREATED)
