@@ -55,3 +55,6 @@ class CustomTokenObtainSerializer(TokenObtainPairSerializer):
         token['email'] = user.email
         token['birthday'] = str(user.birthday) if user.birthday else None
         return token
+
+class GoogleLoginSerializer(serializers.Serializer):
+    code = serializers.CharField(required=True)
