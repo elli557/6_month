@@ -17,6 +17,7 @@ import string
 from rest_framework_simplejwt.views import TokenObtainPairView
 from users.serializers import CustomTokenObtainSerializer
 from django.core.cache import cache
+from users.tasks import send_otp_email
 
 
 
@@ -38,8 +39,9 @@ class RegistrationAPIView(CreateAPIView):
             )
 
             code = ''.join(random.choices(string.digits, k=6))
-            key = f'confirm_code:{user.id}'
-            cache.set(key, code, timeout=300)
+            cache.set(f"confirm_code:{user.id}", code, timeout=300)
+            send_otp_email.delay(email, code)
+
 
         return Response(
             status=status.HTTP_201_CREATED,
