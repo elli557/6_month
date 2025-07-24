@@ -18,6 +18,7 @@ from .serializers import (
     ReviewValidateSerializer
 )
 from common.permissions import IsOwner, IsAnonymous
+from django.core.cache import cache
 
 PAGE_SIZE = 5
 
@@ -67,6 +68,17 @@ class ProductListCreateAPIView(ListCreateAPIView):
     serializer_class = ProductSerializer
     pagination_class = CustomPagination
     permission_classes = [IsOwner | IsAnonymous]
+    
+    def get(self, request, *args, **kwargs):
+        cached_data = cache.get('product_list')
+        if cached_data:
+            print("работает redis")
+            return Response(data=cached_data, status=status.HTTP_200_OK)
+        response = super().get(request, *args, **kwargs)
+        print("обычный response")
+        cache.set("product_list", response.data, timeout=300)
+        return response
+
 
     def post(self, request, *args, **kwargs):
         user = request.user
@@ -75,7 +87,6 @@ class ProductListCreateAPIView(ListCreateAPIView):
             age = today.year - user.birthday.year - ((today.month, today.day) < (user.birthday.month, user.birthday.day))
             if age < 18:
                 return Response({'error': 'вам должно быть 18 лет, чтобы создать продукт'}, status=status.HTTP_403_FORBIDDEN)
-
         serializer = ProductValidateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         product = Product.objects.create(
@@ -85,8 +96,10 @@ class ProductListCreateAPIView(ListCreateAPIView):
             category=serializer.validated_data['category'],
             owner=user
         )
+        cache.delete("product_list")
         return Response(data=ProductSerializer(product).data,
                         status=status.HTTP_201_CREATED)
+
 
 
 class ProductDetailAPIView(RetrieveUpdateDestroyAPIView):
