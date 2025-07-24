@@ -11,11 +11,13 @@ from .serializers import (
     AuthValidateSerializer,
     ConfirmationSerializer
 )
-from .models import ConfirmationCode
+# from .models import ConfirmationCode
 import random
 import string
 from rest_framework_simplejwt.views import TokenObtainPairView
 from users.serializers import CustomTokenObtainSerializer
+from django.core.cache import cache
+
 
 
 class RegistrationAPIView(CreateAPIView):
@@ -36,10 +38,8 @@ class RegistrationAPIView(CreateAPIView):
             )
 
             code = ''.join(random.choices(string.digits, k=6))
-            confirmation_code = ConfirmationCode.objects.create(
-                user=user,
-                code=code
-            )
+            key = f'confirm_code:{user.id}'
+            cache.set(key, code, timeout=300)
 
         return Response(
             status=status.HTTP_201_CREATED,
@@ -88,23 +88,28 @@ class ConfirmUserAPIView(GenericAPIView):
         serializer.is_valid(raise_exception=True)
 
         user_id = serializer.validated_data['user_id']
+        code = serializer.validated_data['code']
+
+        user = CustomUser.objects.get(id=user_id)
+        key = f'confirm_code:{user_id}'
+        cached_code = cache.get(key)
+
+        if cached_code is None:
+            return Response({'error': 'Код подтверждения не найден или истёк'}, status=status.HTTP_400_BAD_REQUEST)
+        if cached_code != code:
+            return Response({'error': 'Неверный код'}, status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
-            user = CustomUser.objects.get(id=user_id)
             user.is_active = True
             user.save()
-
+            cache.delete(key)
             token, _ = Token.objects.get_or_create(user=user)
 
-            ConfirmationCode.objects.filter(user=user).delete()
+        return Response({
+            'message': 'User аккаунт успешно активирован',
+            'key': token.key
+        })
 
-        return Response(
-            status=status.HTTP_200_OK,
-            data={
-                'message': 'User аккаунт успешно активирован',
-                'key': token.key
-            }
-        )
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainSerializer
