@@ -1,20 +1,29 @@
-version: '3'
+version: '3.9'
+
 services:
   shop_api:
     build:
       context: .
-    command: sh -c "python manage.py runserver 0.0.0.0:8000"
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     ports:
       - "7001:8000"
+    env_file:
+      - .env
     depends_on:
       - shop_api_db
+      - redis
+
   shop_api_db:
-    image: "postgres:14"
+    image: postgres:14
     environment:
-      - POSTGRES_DB=shop_api_db
-      - POSTGRES_USER=shop_api_user_db
-      - POSTGRES_PASSWORD=12345
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - 'shop_api-data:/var/lib/postgresql/data'
+      - shop_api-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+
 volumes:
   shop_api-data:
